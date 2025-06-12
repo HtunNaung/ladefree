@@ -1,25 +1,25 @@
 # --- PowerShell Script Setup ---
-$ErrorActionPreference = "Stop"  # Stop the script when an error occurs
-$ProgressPreference = "SilentlyContinue"  # Hide progress output during Invoke-WebRequest
+$ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
 
-# --- Text Color Functions (For PowerShell) ---
+trap {
+    Write-Host -ForegroundColor Red "Fatal Error: $($_.Exception.Message)"
+    exit 1
+}
+
+# --- Text Color Functions ---
 Function Write-Host-Green { param([string]$Message) Write-Host -ForegroundColor Green $Message }
 Function Write-Host-Blue { param([string]$Message) Write-Host -ForegroundColor Blue $Message }
 Function Write-Host-Yellow { param([string]$Message) Write-Host -ForegroundColor Yellow $Message }
 Function Write-Host-Red { param([string]$Message) Write-Host -ForegroundColor Red $Message }
-Function Write-Host-Purple { param([string]$Message) Write-Host -ForegroundColor DarkMagenta $Message } # PowerShell color usually DarkMagenta
+Function Write-Host-Purple { param([string]$Message) Write-Host -ForegroundColor DarkMagenta $Message }
 Function Write-Host-Cyan { param([string]$Message) Write-Host -ForegroundColor Cyan $Message }
 
 # --- Global Variables ---
-$LADEFREE_REPO_URL_BASE = "https://github.com/byJoey/ladefree"  # Ladefree GitHub repository URL
-$LADEFREE_REPO_BRANCH = "main"  # Ladefree repository branch
-$LADE_CLI_NAME = "lade.exe"  # Lade CLI executable name
-$LADE_INSTALL_PATH = "$env:ProgramFiles\LadeCLI"  # Standard installation path for Lade CLI
-
-# --- Information ---
-# Author: Joey
-# Blog: joeyblog.net
-# Telegram group: https://t.me/+ft-zI76oovgwNmRh
+$LADEFREE_REPO_URL_BASE = "https://github.com/byJoey/ladefree"
+$LADEFREE_REPO_BRANCH = "main"
+$LADE_CLI_NAME = "lade.exe"
+$LADE_INSTALL_PATH = "$env:ProgramFiles\LadeCLI"
 
 # --- Function: Display Welcome Message ---
 Function Display-Welcome {
@@ -29,7 +29,7 @@ Function Display-Welcome {
     Write-Host-Cyan "#        " -NoNewline; Write-Host-Blue "Welcome to Lade CLI Auto Deployment Script v1.0.0" -NoNewline; Write-Host-Cyan "        #"
     Write-Host-Cyan "#                                                           #"
     Write-Host-Cyan "#############################################################"
-    Write-Host-Green ""
+    Write-Host ""
     Write-Host "  >> Author: MrHtunNaung"
     Write-Host "  >> Related project note.js: https://github.com/eooce"
     Write-Host ""
@@ -38,7 +38,6 @@ Function Display-Welcome {
     Read-Host "Press Enter to continue..." | Out-Null
 }
 
-# --- Function: Display Section Header ---
 Function Display-SectionHeader {
     param([string]$Title)
     Write-Host ""
@@ -46,23 +45,20 @@ Function Display-SectionHeader {
     Write-Host-Purple "-----------------------------------"
 }
 
-# --- Function: Check if Command Exists ---
 Function Test-CommandExists {
     param([string]$Command)
     (Get-Command -Name $Command -ErrorAction SilentlyContinue) -ne $null
 }
 
-# --- Function: Check if Lade CLI Exists ---
 Function Test-LadeCli {
     Test-CommandExists $LADE_CLI_NAME
 }
 
-# --- Function: Ensure User Logged into Lade ---
 Function Ensure-LadeLogin {
     Write-Host ""
     Write-Host-Purple "--- Checking Lade Login Status ---"
     try {
-        & lade apps list
+        & lade apps list | Out-Null
         Write-Host-Green "Lade is already logged in."
     } catch {
         Write-Host-Yellow "Login session expired or not logged in. Please enter your credentials."
@@ -76,7 +72,6 @@ Function Ensure-LadeLogin {
     }
 }
 
-# --- Function: Deploy App ---
 Function Deploy-App {
     Display-SectionHeader "Deploy Lade App"
     Ensure-LadeLogin
@@ -121,28 +116,20 @@ Function Deploy-App {
     $temp_ladefree_archive = Join-Path $ladefree_temp_download_dir "ladefree.zip"
 
     Write-Host "Downloading from $LADEFREE_REPO_URL_BASE (Branch: $LADEFREE_REPO_BRANCH)..."
-    Write-Host "Download URL: $ladefree_download_url"
 
     try {
         Invoke-WebRequest -Uri $ladefree_download_url -OutFile $temp_ladefree_archive
-    } catch {
-        Write-Host-Red "Error: Failed to download Ladefree ZIP. Please check the URL or network."
-        Remove-Item -Path $ladefree_temp_download_dir -Recurse -Force -ErrorAction SilentlyContinue
-        return
-    }
-
-    Write-Host "Download complete. Extracting..."
-    try {
+        Write-Host "Download complete. Extracting..."
         Expand-Archive -Path $temp_ladefree_archive -DestinationPath $ladefree_temp_download_dir -Force
     } catch {
-        Write-Host-Red "Error: Failed to extract ZIP. Ensure 'Expand-Archive' is available (PowerShell 5.0+ required)."
+        Write-Host-Red "Error: Failed to download or extract Ladefree ZIP. Cleaning up..."
         Remove-Item -Path $ladefree_temp_download_dir -Recurse -Force -ErrorAction SilentlyContinue
         return
     }
 
-    $extracted_app_path = Get-ChildItem -Path $ladefree_temp_download_dir -Directory -Filter "ladefree-*" | Select-Object -ExpandProperty FullName | Select-Object -First 1
+    $extracted_app_path = (Get-ChildItem -Path $ladefree_temp_download_dir -Directory | Where-Object { $_.Name -like "ladefree-*" } | Select-Object -ExpandProperty FullName | Select-Object -First 1)
     if ([string]::IsNullOrWhiteSpace($extracted_app_path)) {
-        Write-Host-Red "Error: Cannot find extracted app directory."
+        Write-Host-Red "Error: Cannot find extracted app directory. Cleaning up..."
         Remove-Item -Path $ladefree_temp_download_dir -Recurse -Force -ErrorAction SilentlyContinue
         return
     }
@@ -160,7 +147,7 @@ Function Deploy-App {
     }
     Pop-Location
 
-    Write-Host "Cleaning up temporary directory $ladefree_temp_download_dir..."
+    Write-Host "Cleaning up temporary directory..."
     Remove-Item -Path $ladefree_temp_download_dir -Recurse -Force -ErrorAction SilentlyContinue
 
     if ($deploy_status -ne 0) {
@@ -172,10 +159,6 @@ Function Deploy-App {
     Write-Host-Cyan "--- Deployment Complete ---"
 }
 
-# --- Remaining Functions (Translate if needed): ---
-# View-Apps
-# Delete-App
-# View-AppLogs
-# Install-LadeCli
-
-# Let me know if you want me to complete the translation for those parts too.
+# --- Start Execution ---
+Display-Welcome
+Deploy-App
