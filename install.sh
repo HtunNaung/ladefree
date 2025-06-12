@@ -88,18 +88,36 @@ check_lade_cli() {
 ensure_lade_login() {
     echo ""
     echo -e "${PURPLE}--- Checking Lade login status ---${NC}"
-    if ! lade apps list; then
+    if ! lade apps list &> /dev/null; then
         echo -e "${RED}Error: Lade not logged in or login failed. Please run 'lade login' manually to log in.${NC}"
-        
-        if [ $? -ne 0 ]; then
-            echo -e "${RED}Lade login failed. Please check your username/password or network connection.${NC}"
-            exit 1
-        fi
-        echo -e "${GREEN}Lade login successful!${NC}"
+        exit 1
     else
         echo -e "${GREEN}Lade is logged in.${NC}"
     fi
 }
 
 deploy_app() {
-    display_section_header "
+    display_section_header "Deploying Application"
+    # Your deployment commands here
+    echo -e "${GREEN}Deployment function placeholder.${NC}"
+}
+
+main() {
+    display_welcome
+
+    if ! check_lade_cli; then
+        echo -e "${YELLOW}Lade CLI not found. Attempting to install...${NC}"
+        if ! install_package "$LADE_CLI_NAME"; then
+            echo -e "${RED}Failed to install Lade CLI. Exiting.${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${GREEN}Lade CLI found.${NC}"
+    fi
+
+    ensure_lade_login
+
+    deploy_app
+}
+
+main "$@"
